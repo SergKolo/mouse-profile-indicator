@@ -1,0 +1,209 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+#
+# Author: Serg Kolo , contact: 1047481448@qq.com
+# Date: 
+# Purpose: 
+#
+# Written for: 
+# Tested on: Ubuntu 16.04 LTS
+#
+#
+#
+# Licensed under The MIT License (MIT).
+# See included LICENSE file or the notice below.
+#
+# Copyright © 2016 Sergiy Kolodyazhnyy
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+import gi
+gi.require_version('AppIndicator3', '0.1')
+from gi.repository import GLib as glib
+from gi.repository import AppIndicator3 as appindicator
+from gi.repository import Gtk as gtk
+from gi.repository import Gio
+import os
+import dbus
+import subprocess
+import argparse
+import json
+
+class MouseProfileIndicator(object):
+
+    def __init__(self):
+        self.app = appindicator.Indicator.new(
+            'mouse-profile-indicator', "",
+            appindicator.IndicatorCategory.APPLICATION_STATUS)
+
+        self.app.set_status(appindicator.IndicatorStatus.ACTIVE)
+        
+        self.config_file = os.path.join(os.path.expanduser('~'),'.mouse_profile.json')
+        self.make_menu()
+        #self.icon_path = os.path.dirname( os.path.realpath(__file__) )
+        #self.app.set_icon( os.path.join(self.icon_path,"pwi_icon.png"  ))
+
+        #self.update_label()
+
+    def set_value(self,*args):
+        schema = 'org.gnome.desktop.peripherals.mouse'
+        key = 'speed' # jacksepticeye
+        self.gsettings_set(schema,None,key,args[-1])
+
+
+    def make_menu(self):
+        """ generates entries in the indicator"""
+        self.app_menu = gtk.Menu()
+        profiles = None
+
+        if os.path.isfile(self.config_file):
+           with open(self.config_file) as conf_file:
+               profiles = json.load( conf_file)
+               for key,value in profiles.items():
+                   self.menu_item = gtk.MenuItem(key)
+                   self.menu_item.connect('activate',self.set_value,value)
+                   self.app_menu.append(self.menu_item)
+                   self.menu_item.show()
+            
+
+
+        self.record_profile = gtk.MenuItem('Store current')
+        self.record_profile.connect('activate',self.record)
+        self.app_menu.append(self.record_profile)
+        self.record_profile.show()
+
+        self.quit_app = gtk.MenuItem('Quit')
+        self.quit_app.connect('activate', self.quit)
+        self.app_menu.append(self.quit_app)
+        self.quit_app.show()
+
+        self.app.set_menu(self.app_menu)
+
+
+    def gsettings_get(self,schema,path,key):
+        """Get value of gsettings schema"""
+        if path is None:
+            gsettings = Gio.Settings.new(schema)
+        else:
+            gsettings = Gio.Settings.new_with_path(schema,path)
+        return gsettings.get_value(key)
+    
+    def gsettings_set(self,schema,path,key,value):
+        """Set value of gsettings schema"""
+        if path is None:
+            gsettings = Gio.Settings.new(schema)
+        else:
+            gsettings = Gio.Settings.new_with_path(schema,path)
+        return gsettings.set_double(key,value)
+    
+    def run(self):
+
+        try:
+            gtk.main()
+        except KeyboardInterrupt:
+            pass
+
+    def record(self,data=None):
+        """ Store current setting as new profile"""
+        schema = 'org.gnome.desktop.peripherals.mouse'
+        key = 'speed' # jacksepticeye
+        current_speed = float(str(self.gsettings_get(schema,None,key)))
+        #print(current_speed)
+        label = self.run_cmd([
+                             'zenity', '--entry', 
+                             '--title=""','--text="Name this profile"'
+                             ]).decode().strip()
+
+        if os.path.isfile(self.config_file):
+            # read data from file and append to it
+            with open(self.config_file,'r') as conf_file:
+                data = json.load(conf_file)
+                write_ok = True
+                for key,value in data.items():
+                    if label == key:
+                       self.run_cmd([
+                                    'zenity', '--error', 
+                                    '--title=""', '--text="Such entry exists"'
+                                    ])
+                       write_ok=False
+                       
+                    if value == current_speed:
+                       self.run_cmd([
+                                    'zenity', '--error', 
+                                    '--title=""', '--text="Profile with such value exists"'
+                                    ])
+                       write_ok=False
+ 
+                data[label]=current_speed
+        else:
+            # file doesn't exist, create it
+            write_ok=True
+            data = { label:current_speed  }
+            print(data)
+        if write_ok:
+            with open(self.config_file,'w') as conf_file:
+                json.dump( data, conf_file,indent=4,sort_keys=True)
+            self.make_menu()
+        # remake the menu now
+        
+    def quit(self, data=None):
+
+        gtk.main_quit()
+
+    def run_cmd(self, cmdlist):
+        
+        new_env = dict( os.environ ) 
+        new_env['LC_ALL'] = 'C' 
+        try:
+            stdout = subprocess.check_output(cmdlist,env=new_env)
+        except subprocess.CalledProcessError:
+            pass
+        else:
+            if stdout:
+                return stdout
+
+
+#    def update_label(self):
+#
+#        cwd = os.getcwd()
+#        red_icon = os.path.join(cwd, 'red.png')
+#        green_icon = os.path.join(cwd, 'green.png')
+#        if self.show_amps:
+#            label_text = self.get_power_info()[1]
+#        else:
+#            label_text = self.get_power_info()[0]
+#
+#        self.app.set_label(label_text, "")
+#        glib.timeout_add_seconds(1, self.set_app_label)
+#
+#    def set_app_label(self):
+#
+#        self.update_label()
+
+
+def main():
+#    parser = argparse.ArgumentParser()
+#    parser.add_argument(
+#        "--amps", help="display output in milliamps", action="store_true")
+#    args = parser.parse_args()
+    indicator = MouseProfileIndicator()
+    indicator.run()
+
+if __name__ == '__main__':
+    main()
