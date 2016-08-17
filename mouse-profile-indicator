@@ -65,13 +65,11 @@ class MouseProfileIndicator(object):
              os.path.join(self.icon_path,"indicator-icon.png"  )
              )
 
-        self.update_menu()
+        self.update_label()
 
     def set_value(self,*args):
         """ wrapper function for gsettings_set() """
         self.gsettings_set(self.schema,None,self.key,args[-1])
-        self.make_menu()
-
 
     def make_menu(self):
         """ generates entries in the indicator"""
@@ -80,13 +78,9 @@ class MouseProfileIndicator(object):
 
         if os.path.isfile(self.config_file):
            with open(self.config_file) as conf_file:
-               current_value = self.gsettings_get(self.schema,None,self.key)
-               current_value = float(str(current_value))
                profiles = json.load( conf_file)
                sorted_profiles = OrderedDict(sorted(profiles.items()))
                for key,value in sorted_profiles.items():
-                   if value == current_value:
-                       key = str(key) + ' *'
                    self.menu_item = gtk.MenuItem(key)
                    self.menu_item.connect('activate',self.set_value,value)
                    self.app_menu.append(self.menu_item)
@@ -191,13 +185,20 @@ class MouseProfileIndicator(object):
             if stdout:
                 return stdout
 
-    def update_menu(self):
-        self.make_menu()
-        #print(self.app.get_menu().__repr__())
-        glib.timeout_add_seconds(1, self.callback)
+    def update_label(self):
+        with open(self.config_file) as conf_file:
+            current_value = self.gsettings_get(self.schema,None,self.key)
+            current_value = float(str(current_value))
+            self.app.set_label("N/A", "")
+            profiles = json.load( conf_file)
+            sorted_profiles = OrderedDict(sorted(profiles.items()))
+            for key,value in sorted_profiles.items():
+               if value == current_value:
+                    self.app.set_label(key,"")
+        glib.timeout_add_seconds(2.5, self.callback)
 
     def callback(self):
-        self.update_menu()
+        self.update_label()
 
 
 def main():
