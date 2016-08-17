@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 #
@@ -7,8 +7,8 @@
 # Purpose: Indicator for Ubuntu Unity to set and keep 
 #          track of mouse speed profiles
 # Tested on: Ubuntu 16.04 LTS
-#
-#
+# 
+# Icons by Zacharee1: http://askubuntu.com/users/274320/zacharee1
 #
 # Licensed under The MIT License (MIT).
 # See included LICENSE file or the notice below.
@@ -47,16 +47,21 @@ class MouseProfileIndicator(object):
 
     def __init__(self):
         self.app = appindicator.Indicator.new(
-            'mouse-profile-indicator', "",
-            appindicator.IndicatorCategory.HARDWARE
-            )
+                       'mouse-profile-indicator', "",
+                       appindicator.IndicatorCategory.HARDWARE
+                       )
 
         self.app.set_status(appindicator.IndicatorStatus.ACTIVE)
-        
-        self.config_file = os.path.join(os.path.expanduser('~'),'.mouse_profile.json')
+
+        self.config_file = os.path.join(
+                               os.path.expanduser('~'),
+                               '.mouse_profile.json'
+                               )
         self.make_menu()
-        #self.icon_path = os.path.dirname( os.path.realpath(__file__) )
-        #self.app.set_icon( os.path.join(self.icon_path,"pwi_icon.png"  ))
+        self.icon_path = os.path.dirname( os.path.realpath(__file__) )
+        self.app.set_icon(
+             os.path.join(self.icon_path,"indicator-icon.png"  )
+             )
 
         #self.update_label()
 
@@ -80,8 +85,6 @@ class MouseProfileIndicator(object):
                    self.menu_item.connect('activate',self.set_value,value)
                    self.app_menu.append(self.menu_item)
                    self.menu_item.show()
-            
-
 
         self.record_profile = gtk.MenuItem('Store current')
         self.record_profile.connect('activate',self.record)
@@ -94,10 +97,7 @@ class MouseProfileIndicator(object):
         self.app_menu.append(self.quit_app)
         self.quit_app.show()
      
- 
-        
         self.app.set_menu(self.app_menu)
-
 
     def gsettings_get(self,schema,path,key):
         """Get value of gsettings schema"""
@@ -144,16 +144,18 @@ class MouseProfileIndicator(object):
                 write_ok = True
                 for key,value in data.items():
                     if label == key:
+                       message ='"Label already exists"'
                        self.run_cmd([
                                     'zenity', '--error', 
-                                    '--title=""', '--text="Such entry exists"'
+                                    '--title=""', '--text=' + message
                                     ])
                        write_ok=False
                        
                     if value == current_speed:
+                       message = '"Profile with such value already exists"' 
                        self.run_cmd([
                                     'zenity', '--error', 
-                                    '--title=""', '--text="Profile with such value exists"'
+                                    '--title=""', '--text=' + message
                                     ])
                        write_ok=False
  
@@ -163,6 +165,7 @@ class MouseProfileIndicator(object):
             write_ok=True
             data = { label:current_speed  }
             print(data)
+
         if write_ok:
             with open(self.config_file,'w') as conf_file:
                 json.dump( data, conf_file,indent=4,sort_keys=True)
