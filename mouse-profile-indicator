@@ -53,6 +53,8 @@ class MouseProfileIndicator(object):
 
         self.app.set_status(appindicator.IndicatorStatus.ACTIVE)
 
+        self.schema = 'org.gnome.desktop.peripherals.mouse'
+        self.key = 'speed' # jacksepticeye
         self.config_file = os.path.join(
                                os.path.expanduser('~'),
                                '.mouse_profile.json'
@@ -63,12 +65,12 @@ class MouseProfileIndicator(object):
              os.path.join(self.icon_path,"indicator-icon.png"  )
              )
 
-        #self.update_label()
+        self.update_menu()
 
     def set_value(self,*args):
-        schema = 'org.gnome.desktop.peripherals.mouse'
-        key = 'speed' # jacksepticeye
-        self.gsettings_set(schema,None,key,args[-1])
+        """ wrapper function for gsettings_set() """
+        self.gsettings_set(self.schema,None,self.key,args[-1])
+        self.make_menu()
 
 
     def make_menu(self):
@@ -78,9 +80,13 @@ class MouseProfileIndicator(object):
 
         if os.path.isfile(self.config_file):
            with open(self.config_file) as conf_file:
+               current_value = self.gsettings_get(self.schema,None,self.key)
+               current_value = float(str(current_value))
                profiles = json.load( conf_file)
                sorted_profiles = OrderedDict(sorted(profiles.items()))
                for key,value in sorted_profiles.items():
+                   if value == current_value:
+                       key = str(key) + ' *'
                    self.menu_item = gtk.MenuItem(key)
                    self.menu_item.connect('activate',self.set_value,value)
                    self.app_menu.append(self.menu_item)
@@ -116,7 +122,7 @@ class MouseProfileIndicator(object):
         return gsettings.set_double(key,value)
     
     def run(self):
-
+        """ Launches the indicator """
         try:
             gtk.main()
         except KeyboardInterrupt:
@@ -124,10 +130,8 @@ class MouseProfileIndicator(object):
 
     def record(self,data=None):
         """ Store current setting as new profile"""
-        schema = 'org.gnome.desktop.peripherals.mouse'
-        key = 'speed' # jacksepticeye
-        current_speed = float(str(self.gsettings_get(schema,None,key)))
-        #print(current_speed)
+        current_speed = self.gsettings_get(self.schema,None,self.key)
+        current_speed = float(str(current_speed))
         label = self.run_cmd([
                              'zenity', '--entry', 
                              '--title=""','--text="Name this profile"'
@@ -164,20 +168,19 @@ class MouseProfileIndicator(object):
             # file doesn't exist, create it
             write_ok=True
             data = { label:current_speed  }
-            print(data)
+            #print(data)
 
         if write_ok:
             with open(self.config_file,'w') as conf_file:
                 json.dump( data, conf_file,indent=4,sort_keys=True)
             self.make_menu()
-        # remake the menu now
         
     def quit(self, data=None):
-
+        """ closes indicator """
         gtk.main_quit()
 
     def run_cmd(self, cmdlist):
-        
+        """ Reusable function for running external commands """
         new_env = dict( os.environ ) 
         new_env['LC_ALL'] = 'C' 
         try:
@@ -188,26 +191,17 @@ class MouseProfileIndicator(object):
             if stdout:
                 return stdout
 
-#    def update_label(self):
-#
-#        cwd = os.getcwd()
-#        red_icon = os.path.join(cwd, 'red.png')
-#        green_icon = os.path.join(cwd, 'green.png')
-#        if self.show_amps:
-#            label_text = self.get_power_info()[1]
-#        else:
-#            label_text = self.get_power_info()[0]
-#
-#        self.app.set_label(label_text, "")
-#        glib.timeout_add_seconds(1, self.set_app_label)
-#
-#    def set_app_label(self):
-#
-#        self.update_label()
+    def update_menu(self):
+        self.make_menu()
+        #print(self.app.get_menu().__repr__())
+        glib.timeout_add_seconds(1, self.callback)
+
+    def callback(self):
+        self.update_menu()
 
 
 def main():
-
+    """ defines program entry point """
     indicator = MouseProfileIndicator()
     indicator.run()
 
