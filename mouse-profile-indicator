@@ -73,20 +73,45 @@ class MouseProfileIndicator(object):
 
     def make_menu(self):
         """ generates entries in the indicator"""
+        if hasattr(self, 'app_menu'):
+           for item in self.app_menu.get_children():
+               self.app_menu.remove(item)
+
         self.app_menu = gtk.Menu()
-        profiles = None
+        profiles = {}
+        separator_added = None
 
         if os.path.isfile(self.config_file):
            with open(self.config_file) as conf_file:
-               profiles = json.load( conf_file)
-               sorted_profiles = OrderedDict(sorted(profiles.items()))
-               for key,value in sorted_profiles.items():
-                   self.menu_item = gtk.MenuItem(key)
-                   self.menu_item.connect('activate',self.set_value,value)
-                   self.app_menu.append(self.menu_item)
-                   self.menu_item.show()
+               try:
+                   profiles = json.load(conf_file)
+               except ValueError as e:
+                   print('VALUE ERROR:',e.__repr__())
+                   pass
+               else:
+                   if profiles:
+                       sorted_profiles = OrderedDict(sorted(profiles.items()))
+                       for key,value in sorted_profiles.items():
+                           self.menu_item = gtk.MenuItem(key)
+                           self.menu_item.connect('activate',self.set_value,value)
+                           self.app_menu.append(self.menu_item)
+                           self.menu_item.show()
+                       self.separator = gtk.SeparatorMenuItem()
+                       self.app_menu.append(self.separator)
+                       self.separator.show()
+                       separator_added = True
 
-        self.record_profile = gtk.MenuItem('Store current')
+                       self.remove_list = gtk.MenuItem('Remove entry')
+                       self.remove_list.connect('activate',self.remove_entry)
+                       self.app_menu.append(self.remove_list)
+                       self.remove_list.show()
+ 
+        if not separator_added:
+            self.separator = gtk.SeparatorMenuItem()
+            self.app_menu.append(self.separator)
+            self.separator.show()
+
+        self.record_profile = gtk.MenuItem('Save current value')
         self.record_profile.connect('activate',self.record)
         self.app_menu.append(self.record_profile)
         self.app.set_secondary_activate_target(self.record_profile)
@@ -98,6 +123,28 @@ class MouseProfileIndicator(object):
         self.quit_app.show()
      
         self.app.set_menu(self.app_menu)
+
+
+    def remove_entry(self,lists=None):
+
+        entry = self.run_cmd([
+                             'zenity', '--entry',
+                             '--title=""','--text="Which entry to remove?"'
+                             ]).decode().strip()
+
+        if os.path.isfile(self.config_file):
+            found = False
+            with open(self.config_file) as conf_file:
+                lists = json.load(conf_file)
+                for key in lists.keys():
+                   if key == entry:
+                      found = True
+
+            if found:
+                with open(self.config_file,'w') as conf_file:
+                   lists.pop(entry)
+                   json.dump(lists, conf_file,indent=4,sort_keys=True)
+                self.make_menu()
 
     def gsettings_get(self,schema,path,key):
         """Get value of gsettings schema"""
@@ -186,18 +233,23 @@ class MouseProfileIndicator(object):
                 return stdout
 
     def update_label(self):
-        with open(self.config_file) as conf_file:
-            current_value = self.gsettings_get(self.schema,None,self.key)
-            current_value = float(str(current_value))
-            self.app.set_label("N/A", "")
-            profiles = json.load( conf_file)
-            sorted_profiles = OrderedDict(sorted(profiles.items()))
-            for key,value in sorted_profiles.items():
-               if value == current_value:
-                    self.app.set_label(key,"")
+        """ periodically alters indicator label
+            to reflect current profile in use
+        """
+        if os.path.isfile(self.config_file):
+            with open(self.config_file) as conf_file:
+                current_value = self.gsettings_get(self.schema,None,self.key)
+                current_value = float(str(current_value))
+                self.app.set_label("N/A", "")
+                profiles = json.load( conf_file)
+                sorted_profiles = OrderedDict(sorted(profiles.items()))
+                for key,value in sorted_profiles.items():
+                   if value == current_value:
+                        self.app.set_label(key,"")
         glib.timeout_add_seconds(2.5, self.callback)
 
     def callback(self):
+        """ callback function for update_label function"""
         self.update_label()
 
 
