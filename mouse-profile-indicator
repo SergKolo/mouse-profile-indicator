@@ -4,10 +4,10 @@
 #
 # Author: Serg Kolo , contact: 1047481448@qq.com
 # Date: August 16th , 2016
-# Purpose: Indicator for Ubuntu Unity to set and keep 
+# Purpose: Indicator for Ubuntu Unity to set and keep
 #          track of mouse speed profiles
 # Tested on: Ubuntu 16.04 LTS
-# 
+#
 # Icons by Zacharee1: http://askubuntu.com/users/274320/zacharee1
 #
 # Licensed under The MIT License (MIT).
@@ -43,76 +43,78 @@ import subprocess
 import json
 import os
 
+
 class MouseProfileIndicator(object):
 
     def __init__(self):
         self.app = appindicator.Indicator.new(
-                       'mouse-profile-indicator', "",
-                       appindicator.IndicatorCategory.HARDWARE
-                       )
+            'mouse-profile-indicator', "",
+            appindicator.IndicatorCategory.HARDWARE
+        )
 
         self.app.set_status(appindicator.IndicatorStatus.ACTIVE)
 
         self.schema = 'org.gnome.desktop.peripherals.mouse'
-        self.key = 'speed' # jacksepticeye
+        self.key = 'speed'  # jacksepticeye
         self.config_file = os.path.join(
-                               os.path.expanduser('~'),
-                               '.mouse_profile.json'
-                               )
+            os.path.expanduser('~'),
+            '.mouse_profile.json'
+        )
         self.make_menu()
-        self.icon_path = os.path.dirname( os.path.realpath(__file__) )
+        self.icon_path = os.path.dirname(os.path.realpath(__file__))
         self.app.set_icon(
-             os.path.join(self.icon_path,"indicator-icon.png"  )
-             )
+            os.path.join(self.icon_path, "indicator-icon.png")
+        )
 
         self.update_label()
 
-    def set_value(self,*args):
+    def set_value(self, *args):
         """ wrapper function for gsettings_set() """
-        self.gsettings_set(self.schema,None,self.key,args[-1])
+        self.gsettings_set(self.schema, None, self.key, args[-1])
 
     def make_menu(self):
         """ generates entries in the indicator"""
         if hasattr(self, 'app_menu'):
-           for item in self.app_menu.get_children():
-               self.app_menu.remove(item)
+            for item in self.app_menu.get_children():
+                self.app_menu.remove(item)
 
         self.app_menu = gtk.Menu()
         profiles = {}
         separator_added = None
 
         if os.path.isfile(self.config_file):
-           with open(self.config_file) as conf_file:
-               try:
-                   profiles = json.load(conf_file)
-               except ValueError as e:
-                   print('VALUE ERROR:',e.__repr__())
-                   pass
-               else:
-                   if profiles:
-                       sorted_profiles = OrderedDict(sorted(profiles.items()))
-                       for key,value in sorted_profiles.items():
-                           self.menu_item = gtk.MenuItem(key)
-                           self.menu_item.connect('activate',self.set_value,value)
-                           self.app_menu.append(self.menu_item)
-                           self.menu_item.show()
-                       self.separator = gtk.SeparatorMenuItem()
-                       self.app_menu.append(self.separator)
-                       self.separator.show()
-                       separator_added = True
+            with open(self.config_file) as conf_file:
+                try:
+                    profiles = json.load(conf_file)
+                except ValueError as e:
+                    print('VALUE ERROR:', e.__repr__())
+                    pass
+                else:
+                    if profiles:
+                        sorted_profiles = OrderedDict(sorted(profiles.items()))
+                        for key, value in sorted_profiles.items():
+                            self.menu_item = gtk.MenuItem(key)
+                            self.menu_item.connect(
+                                'activate', self.set_value, value)
+                            self.app_menu.append(self.menu_item)
+                            self.menu_item.show()
+                        self.separator = gtk.SeparatorMenuItem()
+                        self.app_menu.append(self.separator)
+                        self.separator.show()
+                        separator_added = True
 
-                       self.remove_list = gtk.MenuItem('Remove entry')
-                       self.remove_list.connect('activate',self.remove_entry)
-                       self.app_menu.append(self.remove_list)
-                       self.remove_list.show()
- 
+                        self.remove_list = gtk.MenuItem('Remove entry')
+                        self.remove_list.connect('activate', self.remove_entry)
+                        self.app_menu.append(self.remove_list)
+                        self.remove_list.show()
+
         if not separator_added:
             self.separator = gtk.SeparatorMenuItem()
             self.app_menu.append(self.separator)
             self.separator.show()
 
         self.record_profile = gtk.MenuItem('Save current value')
-        self.record_profile.connect('activate',self.record)
+        self.record_profile.connect('activate', self.record)
         self.app_menu.append(self.record_profile)
         self.app.set_secondary_activate_target(self.record_profile)
         self.record_profile.show()
@@ -121,15 +123,14 @@ class MouseProfileIndicator(object):
         self.quit_app.connect('activate', self.quit)
         self.app_menu.append(self.quit_app)
         self.quit_app.show()
-     
+
         self.app.set_menu(self.app_menu)
 
-
-    def remove_entry(self,lists=None):
+    def remove_entry(self, lists=None):
 
         entry = self.run_cmd([
                              'zenity', '--entry',
-                             '--title=""','--text="Which entry to remove?"'
+                             '--title=""', '--text="Which entry to remove?"'
                              ]).decode().strip()
 
         if os.path.isfile(self.config_file):
@@ -137,31 +138,31 @@ class MouseProfileIndicator(object):
             with open(self.config_file) as conf_file:
                 lists = json.load(conf_file)
                 for key in lists.keys():
-                   if key == entry:
-                      found = True
+                    if key == entry:
+                        found = True
 
             if found:
-                with open(self.config_file,'w') as conf_file:
-                   lists.pop(entry)
-                   json.dump(lists, conf_file,indent=4,sort_keys=True)
+                with open(self.config_file, 'w') as conf_file:
+                    lists.pop(entry)
+                    json.dump(lists, conf_file, indent=4, sort_keys=True)
                 self.make_menu()
 
-    def gsettings_get(self,schema,path,key):
+    def gsettings_get(self, schema, path, key):
         """Get value of gsettings schema"""
         if path is None:
             gsettings = Gio.Settings.new(schema)
         else:
-            gsettings = Gio.Settings.new_with_path(schema,path)
+            gsettings = Gio.Settings.new_with_path(schema, path)
         return gsettings.get_value(key)
-    
-    def gsettings_set(self,schema,path,key,value):
+
+    def gsettings_set(self, schema, path, key, value):
         """Set value of gsettings schema"""
         if path is None:
             gsettings = Gio.Settings.new(schema)
         else:
-            gsettings = Gio.Settings.new_with_path(schema,path)
-        return gsettings.set_double(key,value)
-    
+            gsettings = Gio.Settings.new_with_path(schema, path)
+        return gsettings.set_double(key, value)
+
     def run(self):
         """ Launches the indicator """
         try:
@@ -169,13 +170,13 @@ class MouseProfileIndicator(object):
         except KeyboardInterrupt:
             pass
 
-    def record(self,data=None):
+    def record(self, data=None):
         """ Store current setting as new profile"""
-        current_speed = self.gsettings_get(self.schema,None,self.key)
+        current_speed = self.gsettings_get(self.schema, None, self.key)
         current_speed = float(str(current_speed))
         label = self.run_cmd([
-                             'zenity', '--entry', 
-                             '--title=""','--text="Name this profile"'
+                             'zenity', '--entry',
+                             '--title=""', '--text="Name this profile"'
                              ])
         if not label:
             return None
@@ -184,48 +185,48 @@ class MouseProfileIndicator(object):
 
         if os.path.isfile(self.config_file):
             # read data from file and append to it
-            with open(self.config_file,'r') as conf_file:
+            with open(self.config_file, 'r') as conf_file:
                 data = json.load(conf_file)
                 write_ok = True
-                for key,value in data.items():
+                for key, value in data.items():
                     if label == key:
-                       message ='"Label already exists"'
-                       self.run_cmd([
-                                    'zenity', '--error', 
-                                    '--title=""', '--text=' + message
-                                    ])
-                       write_ok=False
-                       
+                        message = '"Label already exists"'
+                        self.run_cmd([
+                                     'zenity', '--error',
+                                     '--title=""', '--text=' + message
+                                     ])
+                        write_ok = False
+
                     if value == current_speed:
-                       message = '"Profile with such value already exists"' 
-                       self.run_cmd([
-                                    'zenity', '--error', 
-                                    '--title=""', '--text=' + message
-                                    ])
-                       write_ok=False
- 
-                data[label]=current_speed
+                        message = '"Profile with such value already exists"'
+                        self.run_cmd([
+                                     'zenity', '--error',
+                                     '--title=""', '--text=' + message
+                                     ])
+                        write_ok = False
+
+                data[label] = current_speed
         else:
             # file doesn't exist, create it
-            write_ok=True
-            data = { label:current_speed  }
-            #print(data)
+            write_ok = True
+            data = {label: current_speed}
+            # print(data)
 
         if write_ok:
-            with open(self.config_file,'w') as conf_file:
-                json.dump( data, conf_file,indent=4,sort_keys=True)
+            with open(self.config_file, 'w') as conf_file:
+                json.dump(data, conf_file, indent=4, sort_keys=True)
             self.make_menu()
-        
+
     def quit(self, data=None):
         """ closes indicator """
         gtk.main_quit()
 
     def run_cmd(self, cmdlist):
         """ Reusable function for running external commands """
-        new_env = dict( os.environ ) 
-        new_env['LC_ALL'] = 'C' 
+        new_env = dict(os.environ)
+        new_env['LC_ALL'] = 'C'
         try:
-            stdout = subprocess.check_output(cmdlist,env=new_env)
+            stdout = subprocess.check_output(cmdlist, env=new_env)
         except subprocess.CalledProcessError:
             pass
         else:
@@ -238,14 +239,14 @@ class MouseProfileIndicator(object):
         """
         if os.path.isfile(self.config_file):
             with open(self.config_file) as conf_file:
-                current_value = self.gsettings_get(self.schema,None,self.key)
+                current_value = self.gsettings_get(self.schema, None, self.key)
                 current_value = float(str(current_value))
                 self.app.set_label("N/A", "")
-                profiles = json.load( conf_file)
+                profiles = json.load(conf_file)
                 sorted_profiles = OrderedDict(sorted(profiles.items()))
-                for key,value in sorted_profiles.items():
-                   if value == current_value:
-                        self.app.set_label(key,"")
+                for key, value in sorted_profiles.items():
+                    if value == current_value:
+                        self.app.set_label(key, "")
         glib.timeout_add_seconds(2.5, self.callback)
 
     def callback(self):
