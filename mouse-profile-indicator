@@ -62,9 +62,11 @@ class MouseProfileIndicator(object):
         )
         self.make_menu()
         self.icon_path = os.path.dirname(os.path.realpath(__file__))
-        self.app.set_icon(
-            os.path.join(self.icon_path, "indicator-icon.png")
-        )
+       
+        icon_path = os.path.join(self.icon_path, "indicator-icon.png")
+        if os.path.exists(icon_path): self.app.set_icon(icon_path)
+        else: self.app.set_icon('mouse-profile-indicator-icon')
+        
 
         self.update_label()
 
@@ -77,8 +79,8 @@ class MouseProfileIndicator(object):
         if hasattr(self, 'app_menu'):
             for item in self.app_menu.get_children():
                 self.app_menu.remove(item)
-
-        self.app_menu = gtk.Menu()
+        else:
+            self.app_menu = gtk.Menu()
         profiles = {}
         separator_added = None
 
