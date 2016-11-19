@@ -61,11 +61,14 @@ class MouseProfileIndicator(object):
             '.mouse_profile.json'
         )
         self.make_menu()
-        self.icon_path = os.path.dirname(os.path.realpath(__file__))
-       
-        icon_path = os.path.join(self.icon_path, "indicator-icon.png")
-        if os.path.exists(icon_path): self.app.set_icon(icon_path)
-        else: self.app.set_icon('mouse-profile-indicator-icon')
+
+        self.file_dir = os.path.dirname(os.path.realpath(__file__))
+        icon_name = 'mouse-profile-indicator-icon.png' 
+
+        icon_path = os.path.join(self.file_dir, icon_name)
+        if not os.path.exists(icon_path):
+            icon_path =  os.path.join('/usr/share/pixmaps',icon_name)
+        self.app.set_icon(icon_path)
         
 
         self.update_label()
