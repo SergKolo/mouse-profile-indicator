@@ -1,0 +1,12 @@
+Package: mouse-profile-indicator
+Version: 0.1-1
+Architecture: all
+Maintainer: Sergiy Kolodyazhnyy <1047481448@qq.com>
+Installed-Size: 22
+Depends: python3-gi, gir1.2-appindicator3-0.1
+Section: gnome
+Priority: extra
+Homepage: https://github.com/SergKolo/mouse-profile-indicator
+Description: Mouse Profile Indicator
+  Indicator that allows switching between different
+  mouse speeds easily
