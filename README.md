@@ -1,3 +1,6 @@
+If you like software in this repository, please consider making a donation to support the developer
+[![paypalbutton](https://www.paypal.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=CB9L72S9LEF66)
+
 # mouse-profile-indicator
 Indicator for Ubuntu with Unity desktop, which allows saving mouse speed profiles
 
@@ -23,3 +26,4 @@ The configuration for the indicator is stored in `~/.mouse_profile.json` file, w
 ### Side notes:
 
 This indicator is related in its codebase and logic to another indicator I've created, [launcher-list-indicator](https://github.com/SergKolo/launcher-list-indicator), that allows storing and switching between multiple lists of launcher icons.
+
